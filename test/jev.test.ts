@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Jev, type SystemOne } from "../src/jev.js";
+import { gatewayClient, isGatewayKey, Jev, type SystemOne } from "../src/jev.js";
 
 const menu = { APE_PENGU: { desc: "ape", intent: { kind: "hold" as const } }, APE_BTC: { desc: "ape", intent: { kind: "hold" as const } } };
 const ask = { strategy: "You are boozy.", state: { x: 1 }, menu, convictionLabels: ["tipsy", "buzzed", "wasted", "legendary"] };
@@ -80,5 +80,45 @@ describe("Jev client", () => {
     const f = fake(answers);
     expect(await new Jev({ ...base, client: f }).decide({ ...ask, menu: {} })).toMatchObject({ ok: false });
     expect(f.calls.length).toBe(0);
+  });
+});
+
+describe("Jev via Vercel AI Gateway", () => {
+  const evalResult = {
+    answers: {
+      action: { type: "choice", choice: "APE_PENGU", probabilities: { APE_PENGU: 0.7, APE_BTC: 0.3 } },
+      conviction: { type: "score", score: 2.2, probabilities: { "0": 0, "1": 0.1, "2": 0.6, "3": 0.3 } },
+    },
+    usage: { inputTokens: 640, outputTokens: 70 },
+    providerMetadata: { typesafe: { confidence: { action: 0.9, conviction: 0.4 } } },
+    response: { modelId: "typesafe-ai/jev" },
+  };
+
+  it("picks the gateway only for vck_ keys", () => {
+    expect(isGatewayKey("vck_abc")).toBe(true);
+    expect(isGatewayKey("ts_abc")).toBe(false);
+  });
+
+  it("passes the questions through and maps answers, confidence and usage back", async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const evaluate = (async (o: Record<string, unknown>) => (calls.push(o), evalResult)) as never;
+    const j = new Jev({ ...base, apiKey: "vck_test", client: gatewayClient("vck_test", evaluate) });
+    const r = await j.decide(ask);
+    expect(r).toMatchObject({ ok: true, choice: "APE_PENGU", confidence: 0.9, conviction: 2, inputTokens: 640, model: "typesafe-ai/jev" });
+    expect(r.ok && r.costUsd).toBeCloseTo((640 * 0.042) / 1e6, 12);
+    const q = calls[0]!.questions as { action: { type: string; criteria: object } };
+    expect(q.action.type).toBe("choice");
+    expect(Object.keys(q.action.criteria)).toEqual(["APE_PENGU", "APE_BTC"]);
+    expect(calls[0]!.maxRetries).toBe(0);
+  });
+
+  it("backs off on a gateway 429", async () => {
+    const now = 1_000_000;
+    const evaluate = (async () => {
+      throw Object.assign(new Error("rate limited"), { statusCode: 429 });
+    }) as never;
+    const j = new Jev({ ...base, apiKey: "vck_test", client: gatewayClient("vck_test", evaluate), now: () => now });
+    expect(await j.decide(ask)).toMatchObject({ ok: false, reason: "error" });
+    expect(await j.decide(ask)).toMatchObject({ ok: false, reason: "backoff" });
   });
 });

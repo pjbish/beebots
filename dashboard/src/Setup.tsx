@@ -323,7 +323,8 @@ export function Setup() {
               <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">
                 console.typesafe.ai/keys
               </a>
-              . Jev charges per decision. The engine caps Jev spending at $2 a day by default.
+              , or paste a Vercel AI Gateway key (starts with <code>vck_</code>) to reach Jev through the Gateway. Jev
+              charges per decision. The engine caps Jev spending at $2 a day by default.
             </p>
             <input
               className="setup-input mono"

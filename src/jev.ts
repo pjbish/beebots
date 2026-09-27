@@ -3,12 +3,49 @@
 
 import { createRequire } from "node:module";
 import type * as SDK from "@typesafe-ai/sdk" with { "resolution-mode": "require" };
+import { createGateway, experimental_evaluate } from "ai";
 import type { Menu } from "./bees/types.js";
 import { safeError } from "./redact.js";
 
 // @typesafe-ai/sdk 0.6.0 ships only the CJS build (its ESM export path is missing), so load it via require.
 const require = createRequire(import.meta.url);
 const { TypeSafeClient, choice, score } = require("@typesafe-ai/sdk") as typeof SDK;
+
+/** Jev through Vercel AI Gateway: no TypeSafe account needed, same price. Gateway keys start with vck_. */
+export const GATEWAY_JEV_MODEL = "typesafe-ai/jev";
+export const isGatewayKey = (key: string) => key.startsWith("vck_");
+
+type Evaluate = typeof experimental_evaluate;
+
+/** A SystemOne over AI SDK experimental_evaluate. The questions are the same shape; answers are mapped back. */
+export function gatewayClient(apiKey: string, evaluate: Evaluate = experimental_evaluate): SystemOne {
+  const model = createGateway({ apiKey }).evaluationModel(GATEWAY_JEV_MODEL);
+  return {
+    async systemOne(req, opts) {
+      try {
+        const r = await evaluate({
+          model,
+          state: req.state as never,
+          questions: req.questions as never,
+          maxRetries: 0,
+          abortSignal: opts?.timeout ? AbortSignal.timeout(opts.timeout) : undefined,
+        });
+        const conf = (r.providerMetadata?.typesafe?.confidence ?? {}) as Record<string, number>;
+        const answers = Object.fromEntries(Object.entries(r.answers).map(([id, a]) => [id, { ...(a as object), confidence: conf[id] ?? 0 }]));
+        return {
+          model: r.response?.modelId ?? GATEWAY_JEV_MODEL,
+          usage: { input_tokens: r.usage?.inputTokens ?? 0, output_tokens: r.usage?.outputTokens ?? 0 },
+          answers,
+        } as never;
+      } catch (err) {
+        // Surface the HTTP status where the TypeSafe SDK puts it, so 429/5xx back off the same way.
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status !== undefined) Object.assign(err as object, { status });
+        throw err;
+      }
+    },
+  };
+}
 
 export interface JevAsk {
   strategy: string;
@@ -72,6 +109,7 @@ export class Jev {
   constructor(private opts: JevOpts) {
     this.client =
       opts.client ??
+      (isGatewayKey(opts.apiKey) ? gatewayClient(opts.apiKey) : null) ??
       new TypeSafeClient({
         apiKey: opts.apiKey,
         defaultModel: opts.model,
@@ -158,7 +196,9 @@ export class Jev {
 
 /** Setup page: one tiny real call proves the key works. Returns an error message, or null when the key is good. */
 export async function checkJevKey(apiKey: string, model: string, timeoutMs = 10_000): Promise<string | null> {
-  const client = new TypeSafeClient({ apiKey, defaultModel: model, timeout: timeoutMs, retry: { maxRetries: 0 }, logLevel: "off" });
+  const client: SystemOne = isGatewayKey(apiKey)
+    ? gatewayClient(apiKey)
+    : new TypeSafeClient({ apiKey, defaultModel: model, timeout: timeoutMs, retry: { maxRetries: 0 }, logLevel: "off" });
   try {
     await client.systemOne(
       { model, state: { check: "setup" }, questions: { ok: choice("Is this a connection test?", { YES: null, NO: null }) } },
@@ -167,7 +207,8 @@ export async function checkJevKey(apiKey: string, model: string, timeoutMs = 10_
     return null;
   } catch (err) {
     const status = (err as { status?: number }).status;
-    if (status === 401 || status === 403) return "Jev rejected that key. Copy it again from console.typesafe.ai/keys.";
+    if (status === 401 || status === 403)
+      return "Jev rejected that key. Copy it again from console.typesafe.ai/keys (or Vercel AI Gateway → API keys for a vck_ key).";
     const e = safeError(err);
     return `Could not reach Jev (${e.code}: ${e.message})`;
   }
