@@ -55,8 +55,12 @@ export function switchTarget(ctx: BeeContext, top: Candidate[]): Candidate | nul
   return coin === leader.s.coin && streak >= 2 ? leader : null;
 }
 
-/** Profit lock rungs: +2.5% keeps half the best move, +5% keeps 65% (26 Sep: ENA ran +5.6% and round-tripped to a loss). */
+/**
+ * Profit lock rungs: +0.75% keeps 30% of the best move (clears the 0.1% round-trip fee), +2.5% keeps half, +5% keeps 65%.
+ * 26 Sep: ENA ran +5.6% and round-tripped to a loss. 28 Sep: SUI ran +0.87% and dropped to -1.6% under the old +2.5% floor.
+ */
 export const BOOZY_PROFIT_LOCK = [
+  { atPct: 0.75, keep: 0.3 },
   { atPct: 2.5, keep: 0.5 },
   { atPct: 5, keep: 0.65 },
 ] as const;
