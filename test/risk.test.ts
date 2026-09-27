@@ -133,17 +133,17 @@ describe("trade cap and fee budget: hold or close only", () => {
   });
 
   it("vetoes a switch and a double-down under the fee budget", () => {
-    const b = bee("boozy", { feesTodayUsd: 3, position: position(SOL), flatSince: null });
+    const b = bee("boozy", { feesTodayUsd: 4, position: position(SOL), flatSince: null });
     expect(run(ctx("boozy", b, V), boozy, prop({ kind: "switch", instId: "BTC-USD_UM_XPERP-310404", side: "long", sizeFrac: 1, setup: "strict" })).vetoedBy).toBe("fee_budget");
     expect(run(ctx("boozy", b, V), boozy, prop({ kind: "add", sizeFrac: 1 })).vetoedBy).toBe("fee_budget");
   });
 
   it("suspends the never-flat forcing while benched", () => {
-    const b = bee("boozy", { tradesToday: 3, flatSince: NOW - 3_600_000 });
+    const b = bee("boozy", { tradesToday: 6, flatSince: NOW - 3_600_000 });
     const r = run(ctx("boozy", b, V), boozy, prop(open(SOL.instId)));
     expect(r.action.kind).toBe("none");
     expect(r.forcedBy).toBeNull();
-    expect(r.status).toMatch(/benched: all 3 trades used today/);
+    expect(r.status).toMatch(/benched: all 6 trades used today/);
   });
 });
 

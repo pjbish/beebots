@@ -99,7 +99,7 @@ const EnvSchema = z.object({
   // Defaults = the "wider swings" rules in strategies/*.md (what the original bees ran from 2026-09-24).
   ...perStyle("BREEZY", { trades: 3, fee: 1.0, spread: 5, cooldown: 240, stopAtr: 2, maxFlat: 0 }),
   ...perStyle("BIZZY", { trades: 1, fee: 1.0, spread: 5, cooldown: 5, stopAtr: 1.5, maxFlat: 20 }),
-  ...perStyle("BOOZY", { trades: 3, fee: 3.0, spread: 15, cooldown: 2, stopAtr: 2, maxFlat: 0 }),
+  ...perStyle("BOOZY", { trades: 6, fee: 4.0, spread: 15, cooldown: 2, stopAtr: 2, maxFlat: 0 }),
   ...perSlot("BEE1"),
   ...perSlot("BEE2"),
   ...perSlot("BEE3"),

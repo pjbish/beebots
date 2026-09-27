@@ -46,7 +46,7 @@ conviction: score ["tipsy","buzzed","wasted","legendary"]
 - **Always holding something.** `BAIL` must be followed by an `APE_*` on the next tick. He is never flat for more than one tick.
 - Size: max notional (2 × equity) on `APE_*` when conviction ≥ "wasted", otherwise 0.6×.
 - **Spread gate 15 bp (hard).** On 2026-09-24 the top gainer RAY sat at 58.6 bp with $0 resting within 20 bp; one round trip would have cost ~0.7% before the price moved. The gate is what keeps him alive.
-- One open coin at a time. Switch cap: 8 a day (`BOOZY_MAX_TRADES_PER_DAY`) and a fee budget of $3.00/day (`BOOZY_FEE_BUDGET_USD_DAY`, spread cost counts). When either trips he can only RIDE or BAIL until 00:00 UTC, and the always-holding rule is suspended.
+- One open coin at a time. Trade cap: 6 opens a day (`BOOZY_MAX_TRADES_PER_DAY`; the profit lock from +0.75% sells more often) and a fee budget of $4.00/day (`BOOZY_FEE_BUDGET_USD_DAY`, spread cost counts). When either trips he can only RIDE or BAIL until 00:00 UTC, and the always-holding rule is suspended.
 - Daily loss stop per `.env`. When it trips he is "sent home" until 00:00 UTC.
 
 ## Honest expectation
