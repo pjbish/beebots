@@ -71,6 +71,8 @@ export interface CoinStats {
   sentiment: number | null;
   // 4h trend (breezy's coins only)
   trend?: TrendStats;
+  /** 21-week EMA of the coin's spot weekly closes (breezy's coins only; the X-Perps have too little weekly history). */
+  ema21wPx?: number | null;
   /** Larry Williams volatility breakout (bizzy): today's UTC open + k x yesterday's range, from 1h bars. */
   breakout?: { dayOpen: number; prevRange: number; trigger: number } | null;
 }

@@ -11,6 +11,12 @@ export function ema(values: number[], period: number): number[] {
   return out;
 }
 
+/** Last value of an EMA over confirmed closes, or null with fewer than `period` of them. */
+export function emaOfConfirmed(candles: Candle[], period: number): number | null {
+  const closes = candles.filter((c) => c.confirmed).map((c) => c.c);
+  return closes.length < period ? null : ema(closes, period)[closes.length - 1]!;
+}
+
 /** Wilder RSI. */
 export function rsi(closes: number[], period = 14): number | null {
   if (closes.length < period + 1) return null;

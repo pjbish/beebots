@@ -4,6 +4,8 @@
 > - Ranks on 7-day momentum (plus small 24h and attention terms), and commits to each pick for 24h: BAIL, SWITCH_COIN and FLIP_SHORT unlock after that.
 > - Enters at 1x. DOUBLE_DOWN adds 0.5x each time price runs another 1 ATR(1h, approximated as 2 x the 15m ATR) past the entry, up to 2x.
 > - Stop and trail at 3 x ATR(1h). 3 entries a day; adds are not counted.
+> - **Since 2026-09-28:** the profit lock (+0.75% keeps 30%, +2.5% half, +5% 65%) only starts once the best move reaches 1R, the distance from entry to the first stop. Before that, the 3 x ATR(1h) trail is the only stop.
+> - **Regime filter (bees listed in `REGIME_FILTER_BEES`):** no new longs or DOUBLE_DOWNs while BTC is below its 21-week EMA (BTC-USDT spot weekly closes). Shorts and open positions are left alone. See `src/bees/regime.ts`.
 
 > Crooked party hat, manic grin, bent antenna, cocktail with a tiny umbrella, confetti. All-in, big swings, chaos.
 

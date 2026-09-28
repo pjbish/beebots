@@ -108,6 +108,8 @@ export interface BeeBrain {
    * the average entry), the stop keeps at least `keep` of that best move. The highest rung reached applies. Ratchet only.
    */
   profitLock?: ReadonlyArray<{ atPct: number; keep: number }>;
+  /** The profit lock waits until the best move is at least this many R (the entry-to-initial-stop distance). */
+  profitLockMinR?: number;
   /** After an add, the stop may not sit on the losing side of the new average entry (an add can't turn a winner into a loser). */
   protectAdds?: boolean;
   /** Minimum conviction level (0..3) and probability Jev needs for a discretionary open/switch. */

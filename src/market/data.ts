@@ -1,7 +1,7 @@
 import { log } from "../log.js";
 import type { PublicApi } from "../okx/public.js";
 import { safeError } from "../redact.js";
-import { atr, bollinger, macd, pctChange, rsi, trendStats, zScore } from "./indicators.js";
+import { atr, bollinger, emaOfConfirmed, macd, pctChange, rsi, trendStats, zScore } from "./indicators.js";
 import type { Candle, CoinStats, Instrument, MarketView, Ticker } from "./types.js";
 import { gateUniverse } from "./universe.js";
 
@@ -72,6 +72,7 @@ export class MarketFeed {
   private spreadBlocked: string[] = [];
   private oiHistory = new Map<string, Array<[number, number]>>();
   private fundingHist = new Map<string, { at: number; rates: number[] }>();
+  private weekly = new Map<string, { at: number; ema: number | null }>();
   private instrumentsAt = 0;
   private newsAvailable = false;
   lastRefreshAt = 0;
@@ -149,12 +150,13 @@ export class MarketFeed {
         const inst = this.instruments.get(id)!;
         try {
           const isTrend = trendIds.includes(id);
-          const [c15, c1h, c4h, funding, fHist] = await Promise.all([
+          const [c15, c1h, c4h, funding, fHist, ema21w] = await Promise.all([
             this.api.candles(id, "15m", 100),
             this.api.candles(id, "1H", 200),
             isTrend ? this.api.candles(id, "4H", 300) : Promise.resolve(null),
             this.api.funding(id).catch(() => null),
             this.fundingHistory(id, now),
+            isTrend ? this.weeklyEma(inst.coin, now) : Promise.resolve(undefined),
           ]);
           const s = computeStats(inst, tickers.get(id)!, c15, c1h);
           if (funding && Number.isFinite(funding.rate)) {
@@ -164,6 +166,7 @@ export class MarketFeed {
           s.oiUsd = oi.get(id) ?? null;
           s.oiChg1hPct = this.oiChange1h(id, now);
           if (c4h) s.trend = trendStats(c4h);
+          if (ema21w !== undefined) s.ema21wPx = ema21w;
           s.breakout = breakoutLevels(c1h, now, BREAKOUT_K);
           next.set(id, s);
         } catch (err) {
@@ -199,6 +202,20 @@ export class MarketFeed {
     // oldest sample at least 55 min old, closest to 60 min
     const past = h.find(([t]) => t <= now - 55 * 60_000);
     return past ? pctChange(past[1], cur) : null;
+  }
+
+  /** 21-week EMA from the coin's USDT spot market, refreshed hourly; the last good value survives a failed fetch. */
+  private async weeklyEma(coin: string, now: number): Promise<number | null> {
+    const c = this.weekly.get(coin);
+    if (c && now - c.at < HOUR) return c.ema;
+    try {
+      const ema = emaOfConfirmed(await this.api.candles(`${coin}-USDT`, "1W", 100), 21);
+      this.weekly.set(coin, { at: now, ema });
+      return ema;
+    } catch (err) {
+      log.warn("weekly candles failed", { coin, err: safeError(err) });
+      return c?.ema ?? null;
+    }
   }
 
   private async fundingHistory(id: string, now: number): Promise<number[]> {

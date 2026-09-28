@@ -36,6 +36,12 @@ const str = (def: string) =>
     .string()
     .optional()
     .transform((v) => (v === undefined || v.trim() === "" ? def : v.trim()));
+const beeList = (v: string): BeeId[] => {
+  const ids = v.split(",").map((x) => x.trim()).filter(Boolean);
+  const bad = ids.filter((x) => !(BEES as readonly string[]).includes(x));
+  if (bad.length) throw new Error(`REGIME_FILTER_BEES: unknown bee ${bad.join(", ")} (use ${BEES.join(", ")})`);
+  return ids as BeeId[];
+};
 const opt = z
   .string()
   .optional()
@@ -85,6 +91,7 @@ const EnvSchema = z.object({
   BEE_RETIRE_AT_PCT: num(40),
   MAX_FLAT_MINUTES: num(30),
   CALM_MODE: bool(false),
+  REGIME_FILTER_BEES: str(""),
   LIVE_SIZE_MULTIPLIER: num(0.25),
   LIVE_RAMP_HOURS: num(2),
   MIN_24H_VOL_USD: num(1_000_000),
@@ -180,6 +187,8 @@ export interface Config {
     maxFlatMinutes: number;
     /** No drama rules: a flat bee may wait, and code never forces an entry. */
     calmMode: boolean;
+    /** Bees that only open with the weekly regime (bees/regime.ts). */
+    regimeFilterBees: BeeId[];
     liveSizeMultiplier: number;
     liveRampHours: number;
     takerFeeRate: number;
@@ -286,6 +295,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, settings: Setti
       retireAtPct: e.BEE_RETIRE_AT_PCT,
       maxFlatMinutes: e.MAX_FLAT_MINUTES,
       calmMode: e.CALM_MODE,
+      regimeFilterBees: beeList(e.REGIME_FILTER_BEES),
       liveSizeMultiplier: e.LIVE_SIZE_MULTIPLIER,
       liveRampHours: e.LIVE_RAMP_HOURS,
       takerFeeRate: e.TAKER_FEE_RATE,

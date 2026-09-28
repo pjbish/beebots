@@ -10,7 +10,7 @@ type Row = Record<string, string>;
 export interface PublicApi {
   instruments(): Promise<Instrument[]>;
   tickers(): Promise<Map<string, Ticker>>;
-  candles(instId: string, bar: "15m" | "1H" | "4H", limit: number): Promise<Candle[]>;
+  candles(instId: string, bar: "15m" | "1H" | "4H" | "1W", limit: number): Promise<Candle[]>;
   openInterest(): Promise<Map<string, number>>;
   funding(instId: string): Promise<FundingNow>;
   fundingHistory(instId: string, limit: number): Promise<number[]>;

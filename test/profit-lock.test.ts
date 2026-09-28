@@ -1,4 +1,4 @@
-// Boozy's profit lock (+0.75% keeps 30%, +2.5% keeps half the best move, +5% keeps 65%) and "an add can't make a loser".
+// Boozy's profit lock (+0.75% keeps 30%, +2.5% keeps half the best move, +5% keeps 65%, nothing before 1R) and "an add can't make a loser".
 import { describe, expect, it } from "vitest";
 import { Alerts } from "../src/alerts.js";
 import { BOOZY_PROFIT_LOCK } from "../src/bees/boozy.js";
@@ -32,6 +32,11 @@ describe("profitLockStop", () => {
   it("26 Sep ENA: best 0.2853 on an average entry of 0.27018 locks about 0.2800", () => {
     expect(profitLockStop("long", 0.27018, 0.2853, BOOZY_PROFIT_LOCK)).toBeCloseTo(0.2800, 4);
   });
+  it("nothing locks before the move reaches minMove (1R)", () => {
+    expect(profitLockStop("long", 100, 102.9, BOOZY_PROFIT_LOCK, 3)).toBeNull();
+    expect(profitLockStop("long", 100, 103, BOOZY_PROFIT_LOCK, 3)).toBeCloseTo(101.5, 10);
+    expect(profitLockStop("short", 100, 97.5, BOOZY_PROFIT_LOCK, 3)).toBeNull();
+  });
 });
 
 async function harness(px: number, answer = "NOT_ON_MENU") {
@@ -56,7 +61,7 @@ async function harness(px: number, answer = "NOT_ON_MENU") {
 describe("engine: boozy's profit lock", () => {
   it("a +6% run locks 65% of it; the lock holds as the price fades, then the stop sells", async () => {
     const h = await harness(106);
-    h.engine.bees.bee3.position = { instId: h.instId, coin: "ENA", side: "long", contracts: 21, entryPx: 100, openedAt: NOW - 60 * 60_000, stopPx: 90, riskUsd: 10, initialStopPx: 90 };
+    h.engine.bees.bee3.position = { instId: h.instId, coin: "ENA", side: "long", contracts: 21, entryPx: 100, openedAt: NOW - 60 * 60_000, stopPx: 97, riskUsd: 10, initialStopPx: 97 };
     h.engine.bees.bee3.flatSince = null;
     await h.engine.tick();
     const p = h.engine.bees.bee3.position!;
@@ -68,6 +73,14 @@ describe("engine: boozy's profit lock", () => {
     h.setPx(103.5); // through the lock: code sells, still in profit
     await h.engine.tick();
     expect(h.engine.bees.bee3.position).toBeNull();
+  });
+
+  it("waits for 1R: +2% on a 3% stop leaves the stop where it was", async () => {
+    const h = await harness(102);
+    h.engine.bees.bee3.position = { instId: h.instId, coin: "ENA", side: "long", contracts: 21, entryPx: 100, openedAt: NOW - 60 * 60_000, stopPx: 97, riskUsd: 10, initialStopPx: 97 };
+    h.engine.bees.bee3.flatSince = null;
+    await h.engine.tick();
+    expect(h.engine.bees.bee3.position!.stopPx!).toBeLessThan(100);
   });
 
   it("does nothing below +0.75%", async () => {

@@ -1,4 +1,5 @@
 import { customBrain } from "./bees/custom.js";
+import { withRegime } from "./bees/regime.js";
 import { BRAINS } from "./bees/index.js";
 import { maxNotionalUsd, minutesSince, positionNotional, profitLockStop } from "./bees/common.js";
 import { coinOf, type Action, type BeeBrain, type BeeContext, type BeeState, type Position, type Side } from "./bees/types.js";
@@ -245,7 +246,8 @@ export class Engine {
     if (p && brain.profitLock && t?.mid) {
       const better = p.peakPx == null || (p.side === "long" ? t.mid > p.peakPx : t.mid < p.peakPx);
       if (better) p.peakPx = t.mid;
-      const cand = profitLockStop(p.side, p.entryPx, p.peakPx!, brain.profitLock);
+      const oneR = p.initialStopPx != null ? Math.abs(p.entryPx - p.initialStopPx) : 0;
+      const cand = profitLockStop(p.side, p.entryPx, p.peakPx!, brain.profitLock, (brain.profitLockMinR ?? 0) * oneR);
       if (cand !== null && Number.isFinite(cand)) ratchetStop(p, cand);
     }
   }
@@ -731,10 +733,14 @@ export class Engine {
 
   private brains = {} as Record<BeeId, BeeBrain>;
 
-  /** The slot's style brain, narrowed to the owner's coins and carrying the owner's rules (bees/custom.ts). */
+  /** The slot's style brain, narrowed to the owner's coins and carrying the owner's rules (bees/custom.ts), plus the weekly regime filter where REGIME_FILTER_BEES asks for it. */
   private brain(id: BeeId): BeeBrain {
     const s = this.d.cfg.slots[id];
-    return (this.brains[id] ??= customBrain(BRAINS[s.style], { coins: s.coins, rules: s.rules }));
+    if (!this.brains[id]) {
+      const b = customBrain(BRAINS[s.style], { coins: s.coins, rules: s.rules });
+      this.brains[id] = this.d.cfg.risk.regimeFilterBees.includes(id) ? withRegime(b, s.style) : b;
+    }
+    return this.brains[id];
   }
 
   private knobs(id: BeeId) {
