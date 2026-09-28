@@ -218,7 +218,7 @@ export function applyRisk(input: RiskInput): RiskResult {
     const flatMin = minutesSince(bee.flatSince, now);
     if (cap) status = capStatus(cap, ctx);
     else if (input.dataAgeMs > input.maxDataAgeMs) status = "stale market data: waiting";
-    else if (brain.neverForce) {
+    else if (brain.neverForce || ctx.cfg.risk.calmMode) {
       /* waits for its own setup; status already says what it is waiting for */
     } else if (flatMin >= knobs.maxFlatMinutes) {
       const f = brain.forcedEntry(ctx);

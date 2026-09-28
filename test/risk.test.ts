@@ -323,3 +323,26 @@ describe("stale data", () => {
     expect(run(ctx("boozy", b, V), boozy, prop({ kind: "close", reason: "bail" }), "ok", stale).action.kind).toBe("close");
   });
 });
+
+describe("calm mode (CALM_MODE=true): no forced entries", () => {
+  const BTC = V.stats.get("BTC-USD_UM_XPERP-310404")!;
+  const calm = testConfig({ CALM_MODE: "true" });
+
+  it("a weak breezy pick while flat stays a veto, not a forced minimum", () => {
+    const r = run(ctx("breezy", bee("breezy", { flatSince: NOW }), V, calm), breezy, prop(open(BTC.instId, "short", "loose", 5 / 9), 0.69, 3));
+    expect(r.vetoedBy).toMatch(/^weak_conviction/);
+    expect(r.forcedBy).toBeNull();
+    expect(r.action.kind).toBe("none");
+  });
+
+  it("a boozy bee choosing WAIT while flat stays flat, however long it has waited", () => {
+    const r = run(ctx("boozy", bee("boozy", { flatSince: NOW - 6 * 3600_000 }), V, calm), boozy, prop({ kind: "hold" }, 0.8, 1, "WAIT"));
+    expect(r.forcedBy).toBeNull();
+    expect(r.action.kind).toBe("none");
+  });
+
+  it("is off by default: the same boozy wait is forced in", () => {
+    const r = run(ctx("boozy", bee("boozy", { flatSince: NOW - 6 * 3600_000 }), V), boozy, prop({ kind: "hold" }, 0.8, 1, "WAIT"));
+    expect(r.forcedBy).toBe("max_flat");
+  });
+});

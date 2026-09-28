@@ -54,6 +54,12 @@ function ratchetStop(p: Position, cand: number): void {
   else p.stopPx = p.side === "long" ? Math.max(p.stopPx, cand) : Math.min(p.stopPx, cand);
 }
 
+/** A non-empty menu with no way to stay put. */
+function labelsOpenOnly(menu: Record<string, { intent: { kind: string } }>): boolean {
+  const opts = Object.values(menu);
+  return opts.length > 0 && !opts.some((o) => o.intent.kind === "hold");
+}
+
 /** The answer when the menu leaves one legal hold: no Jev call, no cost. */
 function requiredAnswer(label: string): JevAnswer {
   return { ok: true, choice: label, probabilities: { [label]: 1 }, confidence: 1, conviction: 0, convictionRaw: 0, inputTokens: 0, costUsd: 0, latencyMs: 0, model: "rules" };
@@ -253,6 +259,8 @@ export class Engine {
     if (bee.cap === "trade_cap" || bee.cap === "fee_budget") return this.decideBenched(id, now);
     const ctx = this.ctx(id, now);
     const menu = brain.menu(ctx);
+    // Calm mode: the drama rules offer a flat bee only entries; let it choose to stay in cash too.
+    if (cfg.risk.calmMode && !bee.position && labelsOpenOnly(menu)) menu.WAIT = { desc: "no clear setup, stay in cash", intent: { kind: "hold" } };
     const snap = buildSnapshot(brain, ctx);
     if (brain.id === "boozy" && bee.top1.coin) snap.state.top1 = `${bee.top1.coin} x${bee.top1.streak}`;
 

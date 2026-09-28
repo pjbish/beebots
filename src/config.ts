@@ -84,6 +84,7 @@ const EnvSchema = z.object({
   DAILY_LOSS_STOP_PCT: num(8),
   BEE_RETIRE_AT_PCT: num(40),
   MAX_FLAT_MINUTES: num(30),
+  CALM_MODE: bool(false),
   LIVE_SIZE_MULTIPLIER: num(0.25),
   LIVE_RAMP_HOURS: num(2),
   MIN_24H_VOL_USD: num(1_000_000),
@@ -177,6 +178,8 @@ export interface Config {
     dailyLossStopPct: number;
     retireAtPct: number;
     maxFlatMinutes: number;
+    /** No drama rules: a flat bee may wait, and code never forces an entry. */
+    calmMode: boolean;
     liveSizeMultiplier: number;
     liveRampHours: number;
     takerFeeRate: number;
@@ -282,6 +285,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env, settings: Setti
       dailyLossStopPct: e.DAILY_LOSS_STOP_PCT,
       retireAtPct: e.BEE_RETIRE_AT_PCT,
       maxFlatMinutes: e.MAX_FLAT_MINUTES,
+      calmMode: e.CALM_MODE,
       liveSizeMultiplier: e.LIVE_SIZE_MULTIPLIER,
       liveRampHours: e.LIVE_RAMP_HOURS,
       takerFeeRate: e.TAKER_FEE_RATE,
